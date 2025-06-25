@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime
 import hashlib
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -98,47 +99,30 @@ async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
     async with aiofiles.open(file_path, 'rb') as f:
         file_content = await f.read()
 
-    # The final public path we want for our file
     blob_path = f"vocals/{filename}"
-
-    # Vercel's API endpoint for uploads
     upload_url = "https://blob.vercel-storage.com"
 
     headers = {
         "Authorization": f"Bearer {VERCEL_BLOB_READ_WRITE_TOKEN}",
         "x-api-version": "6",
-        # We specify the desired public path in this header
         "x-vercel-blob-pathname": blob_path,
     }
-
     if VERCEL_BLOB_STORE_ID:
         headers["x-vercel-blob-store-id"] = VERCEL_BLOB_STORE_ID
 
     async with httpx.AsyncClient() as client:
-        response = await client.put(
-            upload_url,
-            content=file_content,
-            headers=headers,
-            timeout=60.0
-        )
+        response = await client.put(upload_url, content=file_content, headers=headers, timeout=60.0)
         response.raise_for_status()
-
-        # The Vercel API response is unreliable for getting the final URL.
-        # So, we will construct it manually from the response.
         data = response.json()
         print(f"Vercel Blob response: {data}")
 
-        # The response `url` field gives us the base URL of our blob store.
-        # e.g., "https://a0vjuoiakesdfbzi.public.blob.vercel-storage.com"
-        # We combine it with our desired `blob_path` to create the final, correct URL.
-        
-        base_url = data.get("url")
-        if not base_url:
-            raise ValueError(f"Could not determine base URL from Vercel response: {data}")
+        response_url = data.get("url")
+        if not response_url:
+            raise ValueError("Vercel response did not contain a URL")
 
-        # Construct the correct public URL
-        # Example: "https://<store_url>/vocals/yourfile.mp3"
-        final_url = f"{base_url.split('/api/put')[0]}/{blob_path}"
+        parsed_url = urlparse(response_url)
+        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        final_url = f"{base_url}/{blob_path}"
         
         return final_url
 
@@ -254,12 +238,17 @@ async def extract_vocals(
                 output_file
             )
             
-            # Upload to Vercel Blob
-            vocals_url = await upload_to_vercel_blob(
-                output_file,
-                output_file.name
-            )
-            
+            try:
+                # Upload to Vercel Blob
+                vocals_url = await upload_to_vercel_blob(
+                    output_file,
+                    output_file.name
+                )
+            except httpx.HTTPStatusError as e:
+                raise HTTPException(status_code=502, detail=f"Failed to upload to blob storage. Server returned: {e.response.status_code}")
+            except ValueError as e:
+                raise HTTPException(status_code=500, detail=f"Failed to parse blob storage response: {e}")
+
             # Calculate processing time
             processing_time = (datetime.now() - start_time).total_seconds()
             
@@ -269,10 +258,7 @@ async def extract_vocals(
             )
             
         except httpx.HTTPStatusError as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Error downloading file: {e.response.status_code}"
-            )
+            raise HTTPException(status_code=400, detail=f"Error downloading file: Server returned status {e.response.status_code}.")
         except Exception as e:
             # Add full traceback logging to see the exact error
             import traceback
