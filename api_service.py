@@ -86,14 +86,15 @@ async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
     async with aiofiles.open(file_path, 'rb') as f:
         file_content = await f.read()
     
-    url = f"https://blob.vercel-storage.com/api/put"
-    
     # Create the path in vocals directory
     blob_path = f"vocals/{filename}"
     
+    # Let's try sending the path as a query parameter
+    url = f"https://blob.vercel-storage.com/api/put?pathname={blob_path}"
+    
     headers = {
         "Authorization": f"Bearer {VERCEL_BLOB_READ_WRITE_TOKEN}",
-        "x-vercel-blob-path": blob_path,
+        "x-api-version": "6",  # Use a more recent API version
     }
     
     if VERCEL_BLOB_STORE_ID:
@@ -109,21 +110,13 @@ async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
         response.raise_for_status()
         
         data = response.json()
-        
-        # Debug: Print the response to understand its structure
         print(f"Vercel Blob response: {data}")
         
-        # The response should contain the actual blob URL
-        # It might be in data["blob"]["url"] or data["downloadUrl"]
-        if "blob" in data and "url" in data["blob"]:
-            return data["blob"]["url"]
-        elif "downloadUrl" in data:
-            return data["downloadUrl"]
-        elif "url" in data:
+        # Check for the correct URL in the response
+        if "url" in data and "vocals" in data["url"]:
             return data["url"]
         else:
-            # If we can't find the URL, raise an error with the response
-            raise ValueError(f"Unexpected Vercel Blob response structure: {data}")
+            raise ValueError(f"Vercel did not return a valid vocals URL: {data}")
 
 def extract_vocals_sync(input_path: Path, output_path: Path):
     """Synchronous vocal extraction using Demucs"""
