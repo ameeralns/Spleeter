@@ -173,6 +173,85 @@ sudo journalctl -u vocal-extractor -f  # View logs
    - Select your instance's security group
    - Add inbound rule: Type=Custom TCP, Port=8000, Source=0.0.0.0/0
 
+### Docker Deployment (Recommended)
+
+Docker deployment is the easiest and most reliable method, especially on Amazon Linux 2.
+
+#### Quick Deploy with Docker
+
+1. Clone your repository on EC2:
+```bash
+cd ~
+git clone <your-repo-url> Spleeter
+cd Spleeter
+```
+
+2. Create `.env` file with your tokens:
+```bash
+nano .env
+
+# Add these lines:
+API_TOKEN=your_generated_token_here
+VERCEL_BLOB_READ_WRITE_TOKEN=your_vercel_token_here
+VERCEL_BLOB_STORE_ID=your_store_id  # Optional
+```
+
+3. Run the Docker deployment script:
+```bash
+chmod +x deploy_docker.sh
+./deploy_docker.sh
+```
+
+That's it! The script will:
+- Install Docker if needed
+- Build the container
+- Start the service
+- Show you the API endpoint
+
+#### Manual Docker Commands
+
+If you prefer manual control:
+
+```bash
+# Build the image
+docker build -t vocal-extractor .
+
+# Run with docker-compose
+docker-compose up -d
+
+# Or run with docker directly
+docker run -d \
+  --name vocal-api \
+  -p 8000:8000 \
+  -e API_TOKEN="your_token" \
+  -e VERCEL_BLOB_READ_WRITE_TOKEN="your_vercel_token" \
+  vocal-extractor
+
+# View logs
+docker logs -f vocal-api  # or docker-compose logs -f
+
+# Stop the service
+docker-compose down  # or docker stop vocal-api
+```
+
+#### Docker Management Commands
+
+```bash
+# View running containers
+docker ps
+
+# Restart the service
+docker-compose restart
+
+# Update after code changes
+git pull
+docker-compose build
+docker-compose up -d
+
+# Check resource usage
+docker stats vocal-api
+```
+
 ## Client Usage Example
 
 ### JavaScript/TypeScript
@@ -249,6 +328,7 @@ curl -X POST http://your-aws-instance:8000/extract-vocals \
 - Subsequent requests will be faster (model cached)
 - Processing time depends on audio length and server resources
 - Recommended: Use at least t3.large EC2 instance for better performance
+- Docker containers add minimal overhead
 
 ## Vercel Blob Storage Setup
 
@@ -267,6 +347,11 @@ curl -X POST http://your-aws-instance:8000/extract-vocals \
 
 ## Troubleshooting
 
+### Docker Issues
+- If Docker fails to install, ensure your EC2 instance has internet access
+- For permission errors, make sure you logout/login after adding user to docker group
+- Check Docker logs: `docker-compose logs -f`
+
 ### Model Download Issues
 The first run will download the Demucs model (~300MB). Ensure you have:
 - Stable internet connection
@@ -276,7 +361,7 @@ The first run will download the Demucs model (~300MB). Ensure you have:
 ### Memory Issues
 If you encounter memory errors:
 - Increase instance size
-- Adjust `MemoryMax` in systemd service file
+- Adjust memory limits in `docker-compose.yml`
 - Consider using GPU instance for faster processing
 
 ### Audio Format Issues
@@ -285,8 +370,8 @@ If you encounter memory errors:
 - Large files (>100MB) may timeout - consider increasing timeouts
 
 ### Amazon Linux Specific Issues
-- If ffmpeg installation fails, ensure EPEL repository is enabled
-- For Python issues, ensure python3-devel is installed
+- If ffmpeg installation fails, the Docker container includes it
+- For Python issues in native deployment, use Docker instead
 - Check SELinux status if service fails to start: `sudo getenforce`
 
 ## Original CLI Tool
@@ -296,4 +381,4 @@ The original command-line vocal extractor is still available:
 python vocal_extractor.py "input.mp3"
 ```
 
-See the previous documentation section for CLI usage. 
+See the vocal_extractor.py file for CLI usage.

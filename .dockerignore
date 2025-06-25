@@ -1,0 +1,54 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.env*
+
+# Virtual environments
+bin/
+lib/
+lib64/
+include/
+share/
+pyvenv.cfg
+
+# Output files
+output/
+*.wav
+*.mp3
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation
+README.md
+*.md
+
+# Scripts
+deploy.sh
+vocal-extractor.service
+
+# Test files
+test_*.py
+tests/
+
+# Docker files (during build)
+Dockerfile
+docker-compose.yml
+.dockerignore 
