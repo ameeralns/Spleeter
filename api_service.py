@@ -74,12 +74,24 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Security(secu
 # Helper functions
 async def download_file(url: str, destination: Path):
     """Download file from URL to destination"""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
+    }
     async with httpx.AsyncClient() as client:
-        response = await client.get(str(url), follow_redirects=True, timeout=30.0)
-        response.raise_for_status()
-        
-        async with aiofiles.open(destination, 'wb') as f:
-            await f.write(response.content)
+        try:
+            print(f"Downloading file from: {url}")
+            response = await client.get(url, headers=headers, follow_redirects=True, timeout=30.0)
+            response.raise_for_status()
+            
+            async with aiofiles.open(destination, 'wb') as f:
+                await f.write(response.content)
+            print("File download complete.")
+        except httpx.RequestError as e:
+            print(f"HTTP Request error for {e.request.url}: {e}")
+            raise HTTPException(status_code=400, detail=f"Error downloading file: Network error accessing URL.")
+        except httpx.HTTPStatusError as e:
+            print(f"HTTP Status error for {e.request.url}: {e.response.status_code}")
+            raise HTTPException(status_code=400, detail=f"Error downloading file: Server returned status {e.response.status_code}.")
 
 async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
     """Upload file to Vercel Blob Storage"""
