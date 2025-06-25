@@ -144,46 +144,63 @@ async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
 
 def extract_vocals_sync(input_path: Path, output_path: Path):
     """Synchronous vocal extraction using Demucs"""
-    print("Starting vocal extraction process...")
+    print("SYNC: --- Vocal extraction process started ---")
     try:
         # Load audio
-        print(f"Loading audio from {input_path} with librosa...")
+        print(f"SYNC: Loading audio from {input_path} with librosa...")
         audio_data, sample_rate = librosa.load(str(input_path), sr=None, mono=False)
-        print("Audio loaded successfully.")
-    except Exception as e:
-        print(f"!!! Error loading audio with librosa: {e}")
-        import traceback
-        traceback.print_exc()
-        raise  # Re-raise the exception to be caught by the main handler
+        print(f"SYNC: Audio loaded successfully. Sample rate: {sample_rate}, Shape: {audio_data.shape}")
 
-    print("Applying Demucs model...")
-    # Convert to torch tensor and ensure stereo format
-    if audio_data.ndim == 1:
-        waveform = torch.from_numpy(audio_data).unsqueeze(0).repeat(2, 1)
-    else:
-        waveform = torch.from_numpy(audio_data)
+        # Convert to torch tensor
+        print("SYNC: Converting to torch tensor...")
+        if audio_data.ndim == 1:
+            waveform = torch.from_numpy(audio_data).unsqueeze(0).repeat(2, 1)
+        else:
+            waveform = torch.from_numpy(audio_data)
+        print(f"SYNC: Tensor created. Shape: {waveform.shape}")
+
+        # Ensure stereo format
         if waveform.shape[0] == 1:
             waveform = waveform.repeat(2, 1)
+            print(f"SYNC: Mono converted to stereo. New shape: {waveform.shape}")
         elif waveform.shape[0] > 2:
             waveform = waveform[:2]
-    
-    # Apply the model
-    with torch.no_grad():
-        sources = apply_model(MODEL, waveform[None], device='cpu')[0]
-    
-    # Extract vocals (4th source)
-    vocals = sources[3]
-    
-    # Save as WAV first
-    temp_wav = output_path.with_suffix('.wav')
-    sf.write(str(temp_wav), vocals.T.numpy(), sample_rate)
-    
-    # Convert to MP3
-    audio = AudioSegment.from_wav(str(temp_wav))
-    audio.export(str(output_path), format="mp3", bitrate="192k")
-    
-    # Clean up temp WAV
-    temp_wav.unlink()
+            print(f"SYNC: Multi-channel reduced to stereo. New shape: {waveform.shape}")
+        
+        # Apply the model
+        print("SYNC: Applying Demucs model...")
+        with torch.no_grad():
+            sources = apply_model(MODEL, waveform[None], device='cpu')[0]
+        print("SYNC: Model applied successfully.")
+
+        # Extract vocals
+        vocals = sources[3]
+        print("SYNC: Vocals tensor extracted from sources.")
+
+        # Save temporary WAV
+        temp_wav = output_path.with_suffix('.wav')
+        print(f"SYNC: Saving temporary WAV to {temp_wav}")
+        sf.write(str(temp_wav), vocals.T.cpu().numpy(), sample_rate)
+        print("SYNC: Temporary WAV saved successfully.")
+
+        # Convert to MP3
+        print("SYNC: Loading WAV with pydub...")
+        audio = AudioSegment.from_wav(str(temp_wav))
+        print("SYNC: WAV loaded into pydub.")
+        print(f"SYNC: Exporting to MP3 at {output_path}...")
+        audio.export(str(output_path), format="mp3", bitrate="192k")
+        print("SYNC: MP3 exported successfully.")
+
+        # Clean up
+        print("SYNC: Cleaning up temporary WAV file...")
+        temp_wav.unlink()
+        print("SYNC: --- Vocal extraction process complete ---")
+
+    except Exception as e:
+        print(f"!!! SYNC: An unexpected error occurred in sync process: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 # API Endpoints
 @app.get("/health")
