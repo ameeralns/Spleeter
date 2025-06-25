@@ -85,38 +85,50 @@ async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
     """Upload file to Vercel Blob Storage"""
     async with aiofiles.open(file_path, 'rb') as f:
         file_content = await f.read()
-    
-    # Create the path in vocals directory
+
+    # The final public path we want for our file
     blob_path = f"vocals/{filename}"
-    
-    # Let's try sending the path as a query parameter
-    url = f"https://blob.vercel-storage.com/api/put?pathname={blob_path}"
-    
+
+    # Vercel's API endpoint for uploads
+    upload_url = "https://blob.vercel-storage.com"
+
     headers = {
         "Authorization": f"Bearer {VERCEL_BLOB_READ_WRITE_TOKEN}",
-        "x-api-version": "6",  # Use a more recent API version
+        "x-api-version": "6",
+        # We specify the desired public path in this header
+        "x-vercel-blob-pathname": blob_path,
     }
-    
+
     if VERCEL_BLOB_STORE_ID:
         headers["x-vercel-blob-store-id"] = VERCEL_BLOB_STORE_ID
-    
+
     async with httpx.AsyncClient() as client:
         response = await client.put(
-            url,
+            upload_url,
             content=file_content,
             headers=headers,
             timeout=60.0
         )
         response.raise_for_status()
-        
+
+        # The Vercel API response is unreliable for getting the final URL.
+        # So, we will construct it manually from the response.
         data = response.json()
         print(f"Vercel Blob response: {data}")
+
+        # The response `url` field gives us the base URL of our blob store.
+        # e.g., "https://a0vjuoiakesdfbzi.public.blob.vercel-storage.com"
+        # We combine it with our desired `blob_path` to create the final, correct URL.
         
-        # Check for the correct URL in the response
-        if "url" in data and "vocals" in data["url"]:
-            return data["url"]
-        else:
-            raise ValueError(f"Vercel did not return a valid vocals URL: {data}")
+        base_url = data.get("url")
+        if not base_url:
+            raise ValueError(f"Could not determine base URL from Vercel response: {data}")
+
+        # Construct the correct public URL
+        # Example: "https://<store_url>/vocals/yourfile.mp3"
+        final_url = f"{base_url.split('/api/put')[0]}/{blob_path}"
+        
+        return final_url
 
 def extract_vocals_sync(input_path: Path, output_path: Path):
     """Synchronous vocal extraction using Demucs"""
