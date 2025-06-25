@@ -99,13 +99,15 @@ async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
     async with aiofiles.open(file_path, 'rb') as f:
         file_content = await f.read()
 
+    # The final public path we want for our file
     blob_path = f"vocals/{filename}"
-    upload_url = "https://blob.vercel-storage.com"
+
+    # CORRECT WAY: The destination path is part of the URL itself.
+    upload_url = f"https://blob.vercel-storage.com/{blob_path}"
 
     headers = {
         "Authorization": f"Bearer {VERCEL_BLOB_READ_WRITE_TOKEN}",
         "x-api-version": "6",
-        "x-vercel-blob-pathname": blob_path,
     }
     if VERCEL_BLOB_STORE_ID:
         headers["x-vercel-blob-store-id"] = VERCEL_BLOB_STORE_ID
@@ -115,14 +117,11 @@ async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
         response.raise_for_status()
         data = response.json()
         print(f"Vercel Blob response: {data}")
-
-        response_url = data.get("url")
-        if not response_url:
-            raise ValueError("Vercel response did not contain a URL")
-
-        parsed_url = urlparse(response_url)
-        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-        final_url = f"{base_url}/{blob_path}"
+        
+        # The response URL should now be the correct, final URL.
+        final_url = data.get("url")
+        if not final_url or "vocals" not in final_url:
+             raise ValueError(f"Vercel response did not contain a valid vocals URL: {data}")
         
         return final_url
 
