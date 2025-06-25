@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.env
+
+# Virtual environments
+bin/
+lib/
+lib64/
+include/
+share/
+pyvenv.cfg
+
+# Demucs model cache
+~/.cache/
+.cache/
+
+# Output files
+output/
+*.wav
+*.mp3
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets and credentials
+api_token.txt
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+
+# Test files
+test_output/
+temp/ 
+
+.env.*

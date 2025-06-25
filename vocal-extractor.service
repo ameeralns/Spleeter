@@ -1,0 +1,21 @@
+[Unit]
+Description=Vocal Extractor API Service
+After=network.target
+
+[Service]
+Type=exec
+User=ec2-user
+WorkingDirectory=/home/ec2-user/vocalExtractor
+Environment="PATH=/home/ec2-user/vocalExtractor/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="API_TOKEN=YOUR_API_TOKEN_HERE"
+Environment="VERCEL_BLOB_READ_WRITE_TOKEN=YOUR_VERCEL_TOKEN_HERE"
+ExecStart=/home/ec2-user/vocalExtractor/venv/bin/python api_service.py
+Restart=always
+RestartSec=10
+
+# Performance tuning
+CPUWeight=100
+MemoryMax=4G
+
+[Install]
+WantedBy=multi-user.target 

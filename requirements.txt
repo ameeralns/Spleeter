@@ -1,0 +1,17 @@
+# Core dependencies for vocal extraction
+torch>=2.0.0
+torchaudio>=2.0.0
+demucs>=4.0.0
+librosa>=0.9.0
+soundfile>=0.11.0
+pydub>=0.25.1
+
+# API service dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+httpx>=0.25.0
+aiofiles>=23.0.0
+python-multipart>=0.0.6
+
+# For MP3 handling
+lameenc>=1.5.0 
