@@ -144,9 +144,19 @@ async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
 
 def extract_vocals_sync(input_path: Path, output_path: Path):
     """Synchronous vocal extraction using Demucs"""
-    # Load audio
-    audio_data, sample_rate = librosa.load(str(input_path), sr=None, mono=False)
-    
+    print("Starting vocal extraction process...")
+    try:
+        # Load audio
+        print(f"Loading audio from {input_path} with librosa...")
+        audio_data, sample_rate = librosa.load(str(input_path), sr=None, mono=False)
+        print("Audio loaded successfully.")
+    except Exception as e:
+        print(f"!!! Error loading audio with librosa: {e}")
+        import traceback
+        traceback.print_exc()
+        raise  # Re-raise the exception to be caught by the main handler
+
+    print("Applying Demucs model...")
     # Convert to torch tensor and ensure stereo format
     if audio_data.ndim == 1:
         waveform = torch.from_numpy(audio_data).unsqueeze(0).repeat(2, 1)
@@ -208,6 +218,12 @@ async def extract_vocals(
             # Download input file
             input_file = temp_path / f"input_{url_hash}.mp3"
             await download_file(str(request.mp3_url), input_file)
+
+            # Add logging for file size
+            file_size = os.path.getsize(input_file)
+            print(f"Downloaded file size: {file_size} bytes")
+            if file_size < 1024: # Check if file is reasonably sized
+                raise HTTPException(status_code=400, detail=f"Downloaded file is too small or empty ({file_size} bytes).")
             
             # Process vocals
             output_file = temp_path / f"vocals_{url_hash}_{timestamp}.mp3"
@@ -241,9 +257,13 @@ async def extract_vocals(
                 detail=f"Error downloading file: {e.response.status_code}"
             )
         except Exception as e:
+            # Add full traceback logging to see the exact error
+            import traceback
+            print("!!! An unexpected error occurred !!!")
+            traceback.print_exc()
             raise HTTPException(
                 status_code=500,
-                detail=f"Processing error: {str(e)}"
+                detail=f"An unexpected processing error occurred: {str(e)}"
             )
 
 @app.on_event("startup")
