@@ -109,7 +109,21 @@ async def upload_to_vercel_blob(file_path: Path, filename: str) -> str:
         response.raise_for_status()
         
         data = response.json()
-        return data["url"]
+        
+        # Debug: Print the response to understand its structure
+        print(f"Vercel Blob response: {data}")
+        
+        # The response should contain the actual blob URL
+        # It might be in data["blob"]["url"] or data["downloadUrl"]
+        if "blob" in data and "url" in data["blob"]:
+            return data["blob"]["url"]
+        elif "downloadUrl" in data:
+            return data["downloadUrl"]
+        elif "url" in data:
+            return data["url"]
+        else:
+            # If we can't find the URL, raise an error with the response
+            raise ValueError(f"Unexpected Vercel Blob response structure: {data}")
 
 def extract_vocals_sync(input_path: Path, output_path: Path):
     """Synchronous vocal extraction using Demucs"""
